@@ -2,13 +2,18 @@ package main
 
 import (
 	//"github.com/cfdrake/go-gdbm"
-	"os"
-	"fmt"
 	"go-gdbm" // this is a symlink to my clone, at ~/src/go-gdbm
+	"os"
+	"flag"
+	"fmt"
+	"log"
 	"net/http"
 	"time"
 	"strings"
 )
+
+// Global variable to access the database
+var db *gdbm.Database
 
 func LogHeaders(r *http.Request) {
 	fmt.Printf("HEADERS:\n")
@@ -20,7 +25,7 @@ func LogHeaders(r *http.Request) {
 	}
 }
 
-func LogRequest(r *http.Request) {
+func LogRequest(r *http.Request, code int) {
 	var (
 		addr       string
 		user_agent string
@@ -44,16 +49,44 @@ func LogRequest(r *http.Request) {
 		r.Method,
 		r.URL.Path,
 		user_agent,
-		200,
+		code,
 		r.ContentLength)
 }
 
-func rt_hello(w http.ResponseWriter, r *http.Request) {
-	LogRequest(r)
-	//LogHeaders(r)
+// The primary route handler.
+// setup this way, to have a little more flexibility in the URL.Path matching
+func Route_FigureItOut(w http.ResponseWriter, r *http.Request) {
+	if (strings.HasPrefix(r.URL.Path, "/ip")) {
+		Route_Ip(w,r)
+	} else if (r.URL.Path == "/") {
+		Route_Root(w,r)
+	} else {
+		LogRequest(r, 404)
+		http.Error(w,"Not Found", 404)
+	}
+}
+
+// the "/" route
+func Route_Root(w http.ResponseWriter, r *http.Request) {
+	LogRequest(r, 200)
 	fmt.Fprintf(w, "Hello World!\n\n")
 }
 
+// all things "/ip" (including GET, PUT, etc.)
+func Route_Ip(w http.ResponseWriter, r *http.Request) {
+	LogRequest(r, 200)
+	LogHeaders(r)
+	if (r.Method == "GET") {
+		// read from database
+		fmt.Fprintf(w, "out")
+	} else if (r.Method == "PUT") {
+		// write to database
+		fmt.Fprintf(w, "in")
+	}
+}
+
+// Open `filename` as "rw" if it already exists, otherwise "c" to create it.
+// If any errors, return in `err`.
 func OpenDB(filename string) (db *gdbm.Database, err error) {
 	var (
 		f_flags string
@@ -87,7 +120,21 @@ func FileExists(filename string) (exists bool, err error) {
 }
 
 func main() {
-	db, err := OpenDB("/tmp/ips.db")
+	var (
+		err error
+		ip string
+		port string
+		db_file string
+	)
+
+	ip = *flag.String("ip","0.0.0.0","Set the IP address to serve")
+	port = *flag.String("port","8080","Set the port to serve")
+	db_file = *flag.String("db","/tmp/ips.db","Use the following database filename")
+
+	flag.Parse()
+
+	// TODO: make this global, such that the request handlers can access it
+	db, err = OpenDB(db_file)
 	if err != nil {
 		panic(err)
 	}
@@ -105,4 +152,18 @@ func main() {
 
 	fmt.Printf("%T\n", db_map)
 	fmt.Printf("%v\n", db_map)
+
+	fmt.Printf("%s - Starting the app on %s:%s ...\n", time.Now(), ip, port)
+
+	// Frame up the server with our catch-all Handler
+	s := &http.Server{
+		Addr:           fmt.Sprintf("%s:%s", ip, port),
+		Handler:        http.HandlerFunc(Route_FigureItOut),
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+	log.Fatal(s.ListenAndServe())
 }
+
+
