@@ -1,8 +1,8 @@
 package main
 
 import (
-	//"github.com/cfdrake/go-gdbm"
-	"go-gdbm" // this is a symlink to my clone, at ~/src/go-gdbm
+	"github.com/cfdrake/go-gdbm"
+	//"go-gdbm" // this is a symlink to my clone, at ~/src/go-gdbm
 	"os"
 	"flag"
 	"fmt"
@@ -15,6 +15,7 @@ import (
 // Global variable to access the database
 var db *gdbm.Database
 
+// for debugging request headers
 func LogHeaders(r *http.Request) {
 	fmt.Printf("HEADERS:\n")
 	for k, v := range r.Header {
@@ -25,6 +26,7 @@ func LogHeaders(r *http.Request) {
 	}
 }
 
+// Make an access.log type output
 func LogRequest(r *http.Request, code int) {
 	var (
 		addr       string
@@ -78,10 +80,42 @@ func Route_Ip(w http.ResponseWriter, r *http.Request) {
 	LogHeaders(r)
 	if (r.Method == "GET") {
 		// read from database
-		fmt.Fprintf(w, "out")
+		chunks := strings.Split(r.URL.Path, "/")
+		if (len(chunks) > 2) {
+			if (db.Exists(chunks[2])) {
+				ip, err := db.Fetch(chunks[2])
+				if (err != nil) {
+					fmt.Printf("%s\n", err)
+				}
+				fmt.Fprintf(w, "%s\n", ip)
+			} else {
+				http.Error(w,"No Such Host", 218)
+			}
+		} else {
+			fmt.Fprintf(w, "no hostname\n")
+		}
 	} else if (r.Method == "PUT") {
 		// write to database
-		fmt.Fprintf(w, "in")
+		chunks := strings.Split(r.URL.Path, "/")
+		if (len(chunks) > 2) {
+			ip := r.RemoteAddr
+			if (strings.Contains(ip,":")) {
+				ip_chunks := strings.Split(ip,":")
+				ip = ip_chunks[0]
+			}
+			if (db.Exists(chunks[2])) {
+				err := db.Replace(chunks[2], ip)
+				if (err != nil) {
+					fmt.Printf("%s\n", err)
+				}
+			} else {
+				err := db.Insert(chunks[2], ip)
+				if (err != nil) {
+					fmt.Printf("%s\n", err)
+				}
+			}
+			fmt.Fprintf(w,"%s\n", ip)
+		}
 	}
 }
 
@@ -92,11 +126,11 @@ func OpenDB(filename string) (db *gdbm.Database, err error) {
 		f_flags string
 	)
 
-	f_flags = "rw"
+	f_flags = "c"
 
 	exists, err := FileExists(filename)
-	if (exists == false) {
-		f_flags = "c"
+	if (exists) {
+		f_flags = "w"
 	} else if (err != nil) {
 		return db, err
 	}
@@ -133,25 +167,11 @@ func main() {
 
 	flag.Parse()
 
-	// TODO: make this global, such that the request handlers can access it
 	db, err = OpenDB(db_file)
 	if err != nil {
 		panic(err)
 	}
 	defer db.Close()
-
-	db_map, err := db.ToMap()
-	if err != nil {
-		println(err)
-	}
-	fmt.Printf("%d\n", len(db_map))
-
-	for k, _ := range db_map {
-		fmt.Printf("db_map[%s] = %s\n", k, db_map[k])
-	}
-
-	fmt.Printf("%T\n", db_map)
-	fmt.Printf("%v\n", db_map)
 
 	fmt.Printf("%s - Starting the app on %s:%s ...\n", time.Now(), ip, port)
 
