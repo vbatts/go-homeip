@@ -161,11 +161,16 @@ func main() {
 		db_file string
 	)
 
-	ip = *flag.String("ip","0.0.0.0","Set the IP address to serve")
-	port = *flag.String("port","8080","Set the port to serve")
-	db_file = *flag.String("db","/tmp/ips.db","Use the following database filename")
+	ip_var := flag.String("ip","0.0.0.0","Set the IP address to serve")
+	port_var := flag.String("port","8080","Set the port to serve")
+	db_file_var := flag.String("db","/tmp/ips.db","Use the following database filename")
 
 	flag.Parse()
+
+	ip = *ip_var
+	port = *port_var
+	db_file = *db_file_var
+
 
 	db, err = OpenDB(db_file)
 	if err != nil {
