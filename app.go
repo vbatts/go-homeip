@@ -26,6 +26,16 @@ func LogHeaders(r *http.Request) {
 	}
 }
 
+func RealIP(r *http.Request) (ip string) {
+	ip = r.RemoteAddr
+	for k, v := range r.Header {
+		if k == "X-Forwarded-For" {
+			ip = strings.Join(v, " ")
+		}
+	}
+	return ip
+}
+
 // Make an access.log type output
 func LogRequest(r *http.Request, code int) {
 	var (
@@ -34,14 +44,11 @@ func LogRequest(r *http.Request, code int) {
 	)
 
 	user_agent = ""
-	addr = r.RemoteAddr
+	addr = RealIP(r)
 
 	for k, v := range r.Header {
 		if k == "User-Agent" {
 			user_agent = strings.Join(v, " ")
-		}
-		if k == "X-Forwarded-For" {
-			addr = strings.Join(v, " ")
 		}
 	}
 
@@ -98,7 +105,7 @@ func Route_Ip(w http.ResponseWriter, r *http.Request) {
 		// write to database
 		chunks := strings.Split(r.URL.Path, "/")
 		if (len(chunks) > 2) {
-			ip := r.RemoteAddr
+			ip := RealIP(r)
 			if (strings.Contains(ip,":")) {
 				ip_chunks := strings.Split(ip,":")
 				ip = ip_chunks[0]
