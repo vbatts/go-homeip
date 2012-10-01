@@ -195,6 +195,7 @@ func main() {
 
 	fmt.Printf("%s - Starting the app on %s:%s ...\n", time.Now(), ip, port)
 
+	c <- 1 // send a signal, to prime the channel
 	// Frame up the server with our catch-all Handler
 	s := &http.Server{
 		Addr:           fmt.Sprintf("%s:%s", ip, port),
