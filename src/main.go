@@ -118,16 +118,12 @@ func Route_Ip(w http.ResponseWriter, r *http.Request) {
 			}
 			<- c // wait for channel to clear
 			if (db.Exists(chunks[2])) {
-				c <- 1
 				err := db.Replace(chunks[2], ip)
-				<- c
 				if (err != nil) {
 					fmt.Printf("%s\n", err)
 				}
 			} else {
-				c <- 1
 				err := db.Insert(chunks[2], ip)
-				<- c
 				if (err != nil) {
 					fmt.Printf("%s\n", err)
 				}
