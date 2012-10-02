@@ -93,17 +93,19 @@ func Route_Ip(w http.ResponseWriter, r *http.Request) {
 		// read from database
 		chunks := strings.Split(r.URL.Path, "/")
 		if (len(chunks) > 2) {
-			<- c // wait for channel to clear
 			if (db.Exists(chunks[2])) {
-				ip, err := db.Fetch(chunks[2])
-				if (err != nil) {
-					fmt.Printf("%s\n", err)
-				}
-				fmt.Fprintf(w, "%s\n", ip)
+				go func(key string) {
+					ip, err := db.Fetch(key)
+					if (err != nil) {
+						fmt.Printf("%s\n", err)
+					}
+					fmt.Fprintf(w, "%s\n", ip)
+					c <- 1 // send a signal
+				}(chunks[2])
+				<- c // wait for channel to clear
 			} else {
 				http.Error(w,"No Such Host", 218)
 			}
-			c <- 1 // send a signal
 		} else {
 			fmt.Fprintf(w, "no hostname\n")
 		}
@@ -116,19 +118,25 @@ func Route_Ip(w http.ResponseWriter, r *http.Request) {
 				ip_chunks := strings.Split(ip,":")
 				ip = ip_chunks[0]
 			}
-			<- c // wait for channel to clear
 			if (db.Exists(chunks[2])) {
-				err := db.Replace(chunks[2], ip)
-				if (err != nil) {
-					fmt.Printf("%s\n", err)
-				}
+				go func(key string, val string) {
+					err := db.Replace(key,val)
+					if (err != nil) {
+						fmt.Printf("%s\n", err)
+					}
+					c <- 1 // send a signal
+				}(chunks[2],ip)
+				<- c // wait for channel to clear
 			} else {
-				err := db.Insert(chunks[2], ip)
-				if (err != nil) {
-					fmt.Printf("%s\n", err)
-				}
+				go func(key string, val string) {
+					err := db.Insert(chunks[2], ip)
+					if (err != nil) {
+						fmt.Printf("%s\n", err)
+					}
+					c <- 1 // send a signal
+				}(chunks[2],ip)
+				<- c // wait for channel to clear
 			}
-			c <- 1 // send a signal
 			fmt.Fprintf(w,"%s\n", ip)
 		}
 	}
