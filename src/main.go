@@ -88,7 +88,7 @@ func Route_Root(w http.ResponseWriter, r *http.Request) {
 // all things "/ip" (including GET, PUT, etc.)
 func Route_Ip(w http.ResponseWriter, r *http.Request) {
 	LogRequest(r, 200)
-	LogHeaders(r)
+	//LogHeaders(r)
 	if (r.Method == "GET") {
 		// read from database
 		chunks := strings.Split(r.URL.Path, "/")
