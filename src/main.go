@@ -79,6 +79,16 @@ func Route_FigureItOut(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+/* synchronized check of whether the name is in the database */
+func hostExists(host string) (ret_val bool) {
+  go func() {
+    ret_val = db.Exists(host)
+    c <- 1
+  }()
+  <- c
+  return
+}
+
 // the "/" route
 func Route_Root(w http.ResponseWriter, r *http.Request) {
 	LogRequest(r, 200)
@@ -93,7 +103,7 @@ func Route_Ip(w http.ResponseWriter, r *http.Request) {
 		// read from database
 		chunks := strings.Split(r.URL.Path, "/")
 		if (len(chunks) > 2) {
-			if (db.Exists(chunks[2])) {
+			if (hostExists(chunks[2])) {
 				go func(key string) {
 					ip, err := db.Fetch(key)
 					if (err != nil) {
@@ -118,7 +128,7 @@ func Route_Ip(w http.ResponseWriter, r *http.Request) {
 				ip_chunks := strings.Split(ip,":")
 				ip = ip_chunks[0]
 			}
-			if (db.Exists(chunks[2])) {
+			if (hostExists(chunks[2])) {
 				go func(key string, val string) {
 					err := db.Replace(key,val)
 					if (err != nil) {
