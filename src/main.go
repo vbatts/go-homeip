@@ -1,8 +1,8 @@
 package main
 
 import (
-	//"github.com/cfdrake/go-gdbm"
-	"go-gdbm" // this is a symlink to my clone, at ~/src/go-gdbm
+	"github.com/cfdrake/go-gdbm"
+	//"go-gdbm" // this is a symlink to my clone, at ~/src/go-gdbm
 	"os"
 	//"sync"
 	"flag"
