@@ -5,7 +5,7 @@ import (
 	//"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"log"
-	//"os"
+	"os"
 )
 
 var (
