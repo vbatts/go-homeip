@@ -79,19 +79,19 @@ func SetHostIp(hostname, ip string) (err error) {
 		return err
 	}
 	if exists {
-		result, err := db.Exec("update hosts set ip = '?' where name = '?'", ip, hostname)
+		stmt, err := db.Prepare("update hosts set ip = '%s' where name = '%s'")
 		if err != nil {
 			return err
 		}
-		affected, _ := result.RowsAffected()
-		log.Printf("RowsAffected: %s", affected)
+    defer stmt.Close()
+    stmt.QueryRow(ip, hostname)
 	} else {
-		result, err := db.Exec("insert into hosts(name, ip) values('?', '?')", ip, hostname)
+		stmt, err := db.Prepare("insert into hosts(name, ip) values('%s', '%s')")
 		if err != nil {
 			return err
 		}
-		affected, _ := result.RowsAffected()
-		log.Printf("RowsAffected: %s", affected)
+    defer stmt.Close()
+    stmt.QueryRow(ip, hostname)
 	}
 	return
 }

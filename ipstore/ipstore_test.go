@@ -46,7 +46,7 @@ func TestTransactions(t *testing.T) {
 		t.Fatal("Could not GetHostIp due to:", err)
 	}
 	if ip != "0.0.0.0" {
-		t.Error("the ip addresses should be the same")
+    t.Error("the ip addresses should be the same. Got:",ip,"; Expected: 0.0.0.0")
 	}
 
 	os.Remove(filename)
