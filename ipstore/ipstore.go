@@ -21,8 +21,10 @@ func InitFilename(db_filename string) (err error) {
 		    2) open the db_filename to db
 	*/
 	err = os.Remove(db_filename)
-	if err != nil {
-		return
+	if os.IsNotExist(err) {
+		log.Println("Not removing", db_filename, "because it does not exist")
+  } else if err != nil {
+    return
 	}
 
 	db, err = sql.Open("sqlite3", db_filename)
@@ -50,45 +52,56 @@ func Close() (err error) {
 }
 
 func HostExists(hostname string) (ret_val bool, err error) {
-	rows, err := db.Query("select count(1) from hosts where name = '%s'", hostname)
+	stmt, err := db.Prepare("select count(3) from hosts where name = ?")
 	if err != nil {
 		return false, err
 	}
-	defer rows.Close()
+	defer stmt.Close()
 
-	for rows.Next() {
-		var count int
-		rows.Scan(&count)
-		if count > 0 {
-			return true, nil
-		}
+	var count int
+	stmt.QueryRow(hostname).Scan(&count)
+	if count > 0 {
+		return true, nil
 	}
 	return false, nil
+}
+
+func DropHostIp(hostname string) (err error) {
+	result, err := db.Exec("delete from hosts where name = '?'", hostname)
+	affected, _ := result.RowsAffected()
+	log.Printf("RowsAffected: %s", affected)
+	return err
 }
 
 func SetHostIp(hostname, ip string) (err error) {
 	exists, err := HostExists(hostname)
 	if err != nil {
-		return
+		return err
 	}
 	if exists {
-		_, err = db.Exec("update hosts set ip = '%s' where name = '%s'", ip, hostname)
+		result, err := db.Exec("update hosts set ip = '?' where name = '?'", ip, hostname)
+		if err != nil {
+			return err
+		}
+		affected, _ := result.RowsAffected()
+		log.Printf("RowsAffected: %s", affected)
 	} else {
-		_, err = db.Exec("insert into hosts(name, ip) values('%s', '%s')", ip, hostname)
+		result, err := db.Exec("insert into hosts(name, ip) values('?', '?')", ip, hostname)
+		if err != nil {
+			return err
+		}
+		affected, _ := result.RowsAffected()
+		log.Printf("RowsAffected: %s", affected)
 	}
 	return
 }
 
 func GetHostIp(hostname string) (ip string, err error) {
-	rows, err := db.Query("select ip from hosts where name = '%s'", hostname)
+	stmt, err := db.Prepare("select ip from hosts where name = ?")
 	if err != nil {
 		return
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		rows.Scan(&ip)
-		return ip, nil
-	}
-	return
+	defer stmt.Close()
+	stmt.QueryRow(hostname).Scan(&ip)
+	return ip, nil
 }
