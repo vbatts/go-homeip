@@ -5,7 +5,7 @@ import (
 	//"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"log"
-	//"os"
+	"os"
 )
 
 var (
@@ -20,12 +20,12 @@ func InitFilename(db_filename string) (err error) {
 		     c) OR just os.Remove the filename and create new everytime
 		    2) open the db_filename to db
 	*/
-	//err = os.Remove(db_filename)
-	//if os.IsNotExist(err) {
-	//log.Println("Not removing", db_filename, "because it does not exist")
-	//} else if err != nil {
-	//return
-	//}
+	err = os.Remove(db_filename)
+	if os.IsNotExist(err) {
+		log.Println("Not removing", db_filename, "because it does not exist")
+	} else if err != nil {
+		return
+	}
 
 	db, err = sql.Open("sqlite3", db_filename)
 	if err != nil {
