@@ -41,6 +41,14 @@ func TestTransactions(t *testing.T) {
 		t.Fatal("Could not SetHostIp due to:", err)
 	}
 
+	exists, err = HostExists("foobar")
+	if err != nil {
+    t.Fatal("Could not HostExists due to:", err)
+	}
+	if exists != true {
+		t.Error("This initial check should be true")
+	}
+
 	ip, err := GetHostIp("foobar")
 	if err != nil {
 		t.Fatal("Could not GetHostIp due to:", err)
@@ -49,5 +57,5 @@ func TestTransactions(t *testing.T) {
     t.Error("the ip addresses should be the same. Got:",ip,"; Expected: 0.0.0.0")
 	}
 
-	os.Remove(filename)
+  os.Remove(filename)
 }
