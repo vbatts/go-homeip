@@ -25,10 +25,10 @@ func LogHeaders(r *http.Request) {
 func RealIP(r *http.Request) (ip string) {
 	ip = r.RemoteAddr
 
-  port_pos := strings.LastIndex(ip,":")
-  if port_pos != -1 {
-    ip = ip[0:port_pos]
-  }
+	port_pos := strings.LastIndex(ip, ":")
+	if port_pos != -1 {
+		ip = ip[0:port_pos]
+	}
 
 	for k, v := range r.Header {
 		if k == "X-Forwarded-For" {
@@ -93,13 +93,11 @@ func Route_Ip(w http.ResponseWriter, r *http.Request) {
 		chunks := strings.Split(r.URL.Path, "/")
 		if len(chunks) > 2 {
 			if ok, _ := ipstore.HostExists(chunks[2]); ok {
-				go func(ip string) {
-					ip, err := ipstore.GetHostIp(ip)
-					if err != nil {
-						log.Println(err)
-					}
-					fmt.Fprintf(w, "%s\n", ip)
-				}(chunks[2])
+				ip, err := ipstore.GetHostIp(chunks[2])
+				if err != nil {
+					log.Println(err)
+				}
+				fmt.Fprintf(w, "%s\n", ip)
 			} else {
 				http.Error(w, "No Such Host", 218)
 			}
@@ -119,6 +117,20 @@ func Route_Ip(w http.ResponseWriter, r *http.Request) {
 			}(chunks[2], ip)
 
 			fmt.Fprintf(w, "%s\n", ip)
+		}
+	} else if r.Method == "DELETE" {
+		// delete from database
+		chunks := strings.Split(r.URL.Path, "/")
+		if len(chunks) > 2 {
+			go func(hostname string) {
+				err := ipstore.DropHostIp(hostname)
+				if err != nil {
+					log.Println(err)
+				}
+			}(chunks[2])
+
+			ip := RealIP(r)
+			fmt.Fprintf(w, "Deleted: %s [last - %s]\n", chunks[2], ip)
 		}
 	}
 }
