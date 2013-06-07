@@ -2,7 +2,6 @@ package ipstore
 
 import (
 	"database/sql"
-	//"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"os"
@@ -39,7 +38,7 @@ func InitFilename(db_filename string) (err error) {
 	for _, sql := range initialize_sqls {
 		_, err = db.Exec(sql)
 		if err != nil {
-			log.Printf("%q: %s\n", err, sql)
+      log.Printf("ipstore: %q: %s\n", err, sql)
 			return
 		}
 	}
@@ -61,7 +60,6 @@ func HostExists(hostname string) (ret_val bool, err error) {
 	var count int
 	stmt.QueryRow(hostname).Scan(&count)
 	if count > 0 {
-		log.Println(count)
 		return true, nil
 	}
 	return false, nil
