@@ -67,6 +67,9 @@ func HostExists(hostname string) (ret_val bool, err error) {
 	return false, nil
 }
 
+/*
+Removes the record for hostname
+*/
 func DropHostIp(hostname string) (err error) {
 	result, err := db.Exec("delete from hosts where name = ?", hostname)
 	affected, _ := result.RowsAffected()
@@ -74,6 +77,9 @@ func DropHostIp(hostname string) (err error) {
 	return err
 }
 
+/*
+This sets the ip for a host. Either by updating or inserting the record
+*/
 func SetHostIp(hostname, ip string) (err error) {
 	exists, err := HostExists(hostname)
 	if err != nil {
@@ -103,6 +109,9 @@ func SetHostIp(hostname, ip string) (err error) {
 	return
 }
 
+/*
+Gets the ip address for hostname
+*/
 func GetHostIp(hostname string) (ip string, err error) {
 	rows, err := db.Query("select ip from hosts where name = ?", hostname)
 	if err != nil {
