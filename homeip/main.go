@@ -4,66 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"github.com/vbatts/go-homeip/ipstore"
+	"github.com/vbatts/go-httplog"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 )
-
-// for debugging request headers
-func LogHeaders(r *http.Request) {
-	fmt.Printf("HEADERS:\n")
-	for k, v := range r.Header {
-		fmt.Printf("\t%s\n", k)
-		for i, _ := range v {
-			fmt.Printf("\t\t%s\n", v[i])
-		}
-	}
-}
-
-func RealIP(r *http.Request) (ip string) {
-	ip = r.RemoteAddr
-
-	port_pos := strings.LastIndex(ip, ":")
-	if port_pos != -1 {
-		ip = ip[0:port_pos]
-	}
-
-	for k, v := range r.Header {
-		if k == "X-Forwarded-For" {
-			ip = strings.Join(v, " ")
-		}
-	}
-
-	return ip
-}
-
-// Make an access.log type output
-func LogRequest(r *http.Request, code int) {
-	var (
-		addr       string
-		user_agent string
-	)
-
-	user_agent = ""
-	addr = RealIP(r)
-
-	for k, v := range r.Header {
-		if k == "User-Agent" {
-			user_agent = strings.Join(v, " ")
-		}
-	}
-
-	fmt.Printf("%s - - [%s] \"%s %s\" \"%s\" %d %d\n",
-		addr,
-		time.Now(),
-		r.Method,
-		r.URL.Path,
-		user_agent,
-		code,
-		r.ContentLength)
-}
 
 // The primary route handler.
 // setup this way, to have a little more flexibility in the URL.Path matching
@@ -73,21 +20,21 @@ func Route_FigureItOut(w http.ResponseWriter, r *http.Request) {
 	} else if r.URL.Path == "/" {
 		Route_Root(w, r)
 	} else {
-		LogRequest(r, 404)
+		httplog.LogRequest(r, 404)
 		http.Error(w, "Not Found", 404)
 	}
 }
 
 // the "/" route
 func Route_Root(w http.ResponseWriter, r *http.Request) {
-	LogRequest(r, 200)
+	httplog.LogRequest(r, 200)
 	fmt.Fprintf(w, "Hello World!\n\n")
 }
 
 // all things "/ip" (including GET, PUT, etc.)
 func Route_Ip(w http.ResponseWriter, r *http.Request) {
-	LogRequest(r, 200)
-	//LogHeaders(r)
+	httplog.LogRequest(r, 200)
+	//httplog.LogHeaders(r)
 	if r.Method == "GET" {
 		// read from database
 		chunks := strings.Split(r.URL.Path, "/")
@@ -108,7 +55,7 @@ func Route_Ip(w http.ResponseWriter, r *http.Request) {
 		// write to database
 		chunks := strings.Split(r.URL.Path, "/")
 		if len(chunks) > 2 {
-			ip := RealIP(r)
+			ip := httplog.RealIP(r)
 			go func(hostname, ip string) {
 				err := ipstore.SetHostIp(hostname, ip)
 				if err != nil {
@@ -129,7 +76,7 @@ func Route_Ip(w http.ResponseWriter, r *http.Request) {
 				}
 			}(chunks[2])
 
-			ip := RealIP(r)
+			ip := httplog.RealIP(r)
 			fmt.Fprintf(w, "Deleted: %s [last - %s]\n", chunks[2], ip)
 		}
 	}
