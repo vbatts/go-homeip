@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/pborman/uuid"
 	"github.com/vbatts/go-homeip/ipstore"
 	"github.com/vbatts/go-httplog"
 )
@@ -15,6 +16,8 @@ import (
 func Route_FigureItOut(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/ip/") {
 		Route_Ip(w, r)
+	} else if strings.HasPrefix(r.URL.Path, "/token/") {
+		Route_Token(w, r)
 	} else if r.URL.Path == "/" {
 		Route_Root(w, r)
 	} else {
@@ -27,6 +30,12 @@ func Route_FigureItOut(w http.ResponseWriter, r *http.Request) {
 func Route_Root(w http.ResponseWriter, r *http.Request) {
 	httplog.LogRequest(r, 200)
 	fmt.Fprintf(w, "Hello World!\n\n")
+}
+
+// provide a random UUID on GET for use with /ip/
+func Route_Token(w http.ResponseWriter, r *http.Request) {
+	httplog.LogRequest(r, 200)
+	fmt.Fprintf(w, "%s", uuid.New)
 }
 
 // all things "/ip" (including GET, PUT, etc.)
