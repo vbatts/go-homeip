@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/pborman/uuid"
@@ -15,86 +14,78 @@ import (
 var DefaultRouter = mux.NewRouter()
 
 func init() {
-	DefaultRouter.HandleFunc("/ip", Route_Ip)
-	DefaultRouter.HandleFunc("/ip/{host}", Route_Ip)
-	DefaultRouter.HandleFunc("/token", Route_Token)
-	DefaultRouter.HandleFunc("/", Route_Root)
-}
-
-// The primary route handler.
-// setup this way, to have a little more flexibility in the URL.Path matching
-func Route_FigureItOut(w http.ResponseWriter, r *http.Request) {
-	if strings.HasPrefix(r.URL.Path, "/ip/") {
-		Route_Ip(w, r)
-	} else if strings.HasPrefix(r.URL.Path, "/token/") {
-		Route_Token(w, r)
-	} else if r.URL.Path == "/" {
-		Route_Root(w, r)
-	} else {
-		httplog.LogRequest(r, 404)
-		http.Error(w, "Not Found", 404)
-	}
+	DefaultRouter.HandleFunc("/ip", GetIp)
+	DefaultRouter.HandleFunc("/ip/{host}", GetIpHost).Methods("GET")
+	DefaultRouter.HandleFunc("/ip/{host}", UpdateIpHost).Methods("POST", "PUT")
+	DefaultRouter.HandleFunc("/ip/{host}", DeleteIpHost).Methods("DELETE")
+	DefaultRouter.HandleFunc("/token", RouteToken)
+	DefaultRouter.HandleFunc("/", RouteRoot)
 }
 
 // the "/" route
-func Route_Root(w http.ResponseWriter, r *http.Request) {
+func RouteRoot(w http.ResponseWriter, r *http.Request) {
 	httplog.LogRequest(r, 200)
 	fmt.Fprintf(w, "Hello World!\n\n")
 }
 
 // provide a random UUID on GET for use with /ip/
-func Route_Token(w http.ResponseWriter, r *http.Request) {
+func RouteToken(w http.ResponseWriter, r *http.Request) {
 	httplog.LogRequest(r, 200)
 	fmt.Fprintf(w, "%s", uuid.New())
 }
 
 // all things "/ip" (including GET, PUT, etc.)
-func Route_Ip(w http.ResponseWriter, r *http.Request) {
-	httplog.LogRequest(r, 200)
-	//httplog.LogHeaders(r)
-	if r.Method == "GET" {
-		// read from database
-		chunks := strings.Split(r.URL.Path, "/")
-		if len(chunks) > 2 {
-			if ok, _ := ipstore.HostExists(chunks[2]); ok {
-				ip, err := ipstore.GetHostIp(chunks[2])
-				if err != nil {
-					log.Println(err)
-				}
-				fmt.Fprintf(w, "%s\n", ip)
-			} else {
-				http.Error(w, "No Such Host", 218)
+func GetIp(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "%s", httplog.RealIP(r))
+}
+
+func GetIpHost(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	host := vars["host"]
+	if host != "" {
+		if ok, _ := ipstore.HostExists(host); ok {
+			ip, err := ipstore.GetHostIp(host)
+			if err != nil {
+				log.Println(err)
 			}
-		} else {
-			fmt.Fprintf(w, "no hostname\n")
-		}
-	} else if r.Method == "PUT" || r.Method == "POST" {
-		// write to database
-		chunks := strings.Split(r.URL.Path, "/")
-		if len(chunks) > 2 {
-			ip := httplog.RealIP(r)
-			go func(hostname, ip string) {
-				err := ipstore.SetHostIp(hostname, ip)
-				if err != nil {
-					log.Println(err)
-				}
-			}(chunks[2], ip)
-
 			fmt.Fprintf(w, "%s\n", ip)
+		} else {
+			http.Error(w, "No Such Host", 218)
 		}
-	} else if r.Method == "DELETE" {
-		// delete from database
-		chunks := strings.Split(r.URL.Path, "/")
-		if len(chunks) > 2 {
-			go func(hostname string) {
-				err := ipstore.DropHostIp(hostname)
-				if err != nil {
-					log.Println(err)
-				}
-			}(chunks[2])
+	} else {
+		fmt.Fprintf(w, "no hostname\n")
+	}
+}
+func UpdateIpHost(w http.ResponseWriter, r *http.Request) {
+	// write to database
+	vars := mux.Vars(r)
+	host := vars["host"]
+	if host != "" {
+		ip := httplog.RealIP(r)
+		go func(hostname, ip string) {
+			err := ipstore.SetHostIp(hostname, ip)
+			if err != nil {
+				log.Println(err)
+			}
+		}(host, ip)
 
-			ip := httplog.RealIP(r)
-			fmt.Fprintf(w, "Deleted: %s [last - %s]\n", chunks[2], ip)
-		}
+		fmt.Fprintf(w, "%s\n", ip)
+	}
+}
+func DeleteIpHost(w http.ResponseWriter, r *http.Request) {
+	httplog.LogRequest(r, 200)
+	// delete from database
+	vars := mux.Vars(r)
+	host := vars["host"]
+	if host != "" {
+		go func(hostname string) {
+			err := ipstore.DropHostIp(hostname)
+			if err != nil {
+				log.Println(err)
+			}
+		}(host)
+
+		ip := httplog.RealIP(r)
+		fmt.Fprintf(w, "Deleted: %s [last - %s]\n", host, ip)
 	}
 }
