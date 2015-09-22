@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/cznic/ql/driver"
 )
 
 var (
@@ -13,7 +13,7 @@ var (
 	GlobalToken = "global"
 )
 
-func InitFilename(db_filename string) (err error) {
+func InitFilename(db_filename string) error {
 	/*
 			  1) check if db_filename exists.
 		     a) if not, create it
@@ -21,31 +21,32 @@ func InitFilename(db_filename string) (err error) {
 		     c) OR just os.Remove the filename and create new everytime
 		    2) open the db_filename to db
 	*/
-	err = os.Remove(db_filename)
+	err := os.Remove(db_filename)
 	if os.IsNotExist(err) {
 		log.Println("Not removing", db_filename, "because it does not exist")
 	} else if err != nil {
-		return
+		return err
 	}
 
-	db, err = sql.Open("sqlite3", db_filename)
+	db, err = sql.Open("ql", db_filename)
 	if err != nil {
-		return
+		return err
 	}
 	initialize_sqls := []string{
-		"create table hosts (id integer not null primary key, name text, ip text, token text)",
-		//"delete from hosts",
+		"create table hosts (name string, ip string, token string);",
 	}
 
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
 	for _, sql := range initialize_sqls {
-		_, err = db.Exec(sql)
-		if err != nil {
+		if _, err = tx.Exec(sql); err != nil {
 			log.Printf("ipstore: %q: %s\n", err, sql)
-			return
+			return err
 		}
 	}
-
-	return
+	return tx.Commit()
 }
 
 func Close() (err error) {
@@ -59,7 +60,7 @@ func HostExists(hostname string) (ret_val bool, err error) {
 
 // HostExistsToken validates whether there is a record for the hostname
 func HostExistsToken(hostname, token string) (ret_val bool, err error) {
-	stmt, err := db.Prepare("select count(1) from hosts where name = ? and token = ?")
+	stmt, err := db.Prepare("select count(1) from hosts where name = ? and token = ?;")
 	if err != nil {
 		return false, err
 	}
@@ -80,7 +81,7 @@ func DropHostIp(hostname string) (err error) {
 
 // DropHostIpToken removes the record for hostname
 func DropHostIpToken(hostname, token string) (err error) {
-	result, err := db.Exec("delete from hosts where name = ? and token = ?", hostname, token)
+	result, err := db.Exec("delete from hosts where name = ? and token = ?;", hostname, token)
 	affected, _ := result.RowsAffected()
 	log.Printf("RowsAffected: %s", affected)
 	return err
@@ -98,7 +99,7 @@ func SetHostIpToken(hostname, ip, token string) (err error) {
 		return err
 	}
 	if exists {
-		stmt, err := db.Prepare("update hosts set ip = ? where name = ? and token = ?")
+		stmt, err := db.Prepare("update hosts set ip = ? where name = ? and token = ?;")
 		if err != nil {
 			return err
 		}
@@ -107,18 +108,17 @@ func SetHostIpToken(hostname, ip, token string) (err error) {
 		if err != nil {
 			return err
 		}
-	} else {
-		stmt, err := db.Prepare("insert into hosts(name, ip, token) values(?, ?, ?)")
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
-		_, err = stmt.Exec(hostname, ip, token)
-		if err != nil {
-			return err
-		}
 	}
-	return
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(`INSERT INTO hosts(name, ip, token) VALUES ($1, $2, $3);`, hostname, ip, token); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // GetHostIp gets the ip address for hostname
@@ -128,7 +128,7 @@ func GetHostIp(hostname string) (ip string, err error) {
 
 // GetHostIpToken gets the ip address for hostname in the context of token
 func GetHostIpToken(hostname, token string) (ip string, err error) {
-	rows, err := db.Query("select ip from hosts where name = ? and token = ?", hostname, token)
+	rows, err := db.Query("select ip from hosts where name = ? and token = ?;", hostname, token)
 	if err != nil {
 		return "", err
 	}
