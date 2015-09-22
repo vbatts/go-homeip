@@ -18,6 +18,9 @@ func init() {
 	DefaultRouter.HandleFunc("/ip/{host}", GetIpHost).Methods("GET")
 	DefaultRouter.HandleFunc("/ip/{host}", UpdateIpHost).Methods("POST", "PUT")
 	DefaultRouter.HandleFunc("/ip/{host}", DeleteIpHost).Methods("DELETE")
+	DefaultRouter.HandleFunc("/ip/{host}/token/{token}", GetIpHost).Methods("GET")
+	DefaultRouter.HandleFunc("/ip/{host}/token/{token}", UpdateIpHost).Methods("POST", "PUT")
+	DefaultRouter.HandleFunc("/ip/{host}/token/{token}", DeleteIpHost).Methods("DELETE")
 	DefaultRouter.HandleFunc("/token", RouteToken)
 	DefaultRouter.HandleFunc("/", RouteRoot)
 }
@@ -42,6 +45,7 @@ func GetIp(w http.ResponseWriter, r *http.Request) {
 func GetIpHost(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	host := vars["host"]
+	fmt.Printf("%#v\n", vars)
 	if host != "" {
 		if ok, _ := ipstore.HostExists(host); ok {
 			ip, err := ipstore.GetHostIp(host)
