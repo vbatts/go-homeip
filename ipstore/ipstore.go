@@ -2,13 +2,15 @@ package ipstore
 
 import (
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"os"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
-	db *sql.DB
+	db          *sql.DB
+	GlobalToken = "global"
 )
 
 func InitFilename(db_filename string) (err error) {
@@ -31,14 +33,14 @@ func InitFilename(db_filename string) (err error) {
 		return
 	}
 	initialize_sqls := []string{
-		"create table hosts (id integer not null primary key, name text, ip text)",
+		"create table hosts (id integer not null primary key, name text, ip text, token text)",
 		//"delete from hosts",
 	}
 
 	for _, sql := range initialize_sqls {
 		_, err = db.Exec(sql)
 		if err != nil {
-      log.Printf("ipstore: %q: %s\n", err, sql)
+			log.Printf("ipstore: %q: %s\n", err, sql)
 			return
 		}
 	}
@@ -50,56 +52,68 @@ func Close() (err error) {
 	return db.Close()
 }
 
+// HostExists validates whether there is a record for the hostname in the GlobalToken context
 func HostExists(hostname string) (ret_val bool, err error) {
-	stmt, err := db.Prepare("select count(1) from hosts where name = ?")
+	return HostExistsToken(hostname, GlobalToken)
+}
+
+// HostExistsToken validates whether there is a record for the hostname
+func HostExistsToken(hostname, token string) (ret_val bool, err error) {
+	stmt, err := db.Prepare("select count(1) from hosts where name = ? and token = ?")
 	if err != nil {
 		return false, err
 	}
 	defer stmt.Close()
 
 	var count int
-	stmt.QueryRow(hostname).Scan(&count)
+	stmt.QueryRow(hostname, token).Scan(&count)
 	if count > 0 {
 		return true, nil
 	}
 	return false, nil
 }
 
-/*
-Removes the record for hostname
-*/
+// DropHostIp removes the record for hostname
 func DropHostIp(hostname string) (err error) {
-	result, err := db.Exec("delete from hosts where name = ?", hostname)
+	return DropHostIpToken(hostname, GlobalToken)
+}
+
+// DropHostIpToken removes the record for hostname
+func DropHostIpToken(hostname, token string) (err error) {
+	result, err := db.Exec("delete from hosts where name = ? and token = ?", hostname, token)
 	affected, _ := result.RowsAffected()
 	log.Printf("RowsAffected: %s", affected)
 	return err
 }
 
-/*
-This sets the ip for a host. Either by updating or inserting the record
-*/
+// SetHostIp sets the ip for a host. Either by updating or inserting the record
 func SetHostIp(hostname, ip string) (err error) {
-	exists, err := HostExists(hostname)
+	return SetHostIpToken(hostname, ip, GlobalToken)
+}
+
+// SetHostIpToken sets host ip, in context of the provided token
+func SetHostIpToken(hostname, ip, token string) (err error) {
+	exists, err := HostExistsToken(hostname, token)
 	if err != nil {
 		return err
 	}
 	if exists {
-		stmt, err := db.Prepare("update hosts set ip = ? where name = ?")
+		stmt, err := db.Prepare("update hosts set ip = ? where name = ? and token = ?")
 		if err != nil {
 			return err
 		}
 		defer stmt.Close()
-		_, err = stmt.Exec(ip, hostname)
+		_, err = stmt.Exec(ip, hostname, token)
 		if err != nil {
 			return err
 		}
 	} else {
-		stmt, err := db.Prepare("insert into hosts(name, ip) values(?, ?)")
+		stmt, err := db.Prepare("insert into hosts(name, ip, token) values(?, ?, ?)")
 		if err != nil {
 			return err
 		}
 		defer stmt.Close()
-		_, err = stmt.Exec(hostname, ip)
+		_, err = stmt.Exec(hostname, ip, token)
 		if err != nil {
 			return err
 		}
@@ -107,11 +121,14 @@ func SetHostIp(hostname, ip string) (err error) {
 	return
 }
 
-/*
-Gets the ip address for hostname
-*/
+// GetHostIp gets the ip address for hostname
 func GetHostIp(hostname string) (ip string, err error) {
-	rows, err := db.Query("select ip from hosts where name = ?", hostname)
+	return GetHostIpToken(hostname, GlobalToken)
+}
+
+// GetHostIpToken gets the ip address for hostname in the context of token
+func GetHostIpToken(hostname, token string) (ip string, err error) {
+	rows, err := db.Query("select ip from hosts where name = ? and token = ?", hostname, token)
 	if err != nil {
 		return "", err
 	}
