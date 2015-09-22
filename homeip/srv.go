@@ -6,10 +6,20 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gorilla/mux"
 	"github.com/pborman/uuid"
 	"github.com/vbatts/go-homeip/ipstore"
 	"github.com/vbatts/go-httplog"
 )
+
+var DefaultRouter = mux.NewRouter()
+
+func init() {
+	DefaultRouter.HandleFunc("/ip", Route_Ip)
+	DefaultRouter.HandleFunc("/ip/{host}", Route_Ip)
+	DefaultRouter.HandleFunc("/token", Route_Token)
+	DefaultRouter.HandleFunc("/", Route_Root)
+}
 
 // The primary route handler.
 // setup this way, to have a little more flexibility in the URL.Path matching
@@ -35,7 +45,7 @@ func Route_Root(w http.ResponseWriter, r *http.Request) {
 // provide a random UUID on GET for use with /ip/
 func Route_Token(w http.ResponseWriter, r *http.Request) {
 	httplog.LogRequest(r, 200)
-	fmt.Fprintf(w, "%s", uuid.New)
+	fmt.Fprintf(w, "%s", uuid.New())
 }
 
 // all things "/ip" (including GET, PUT, etc.)

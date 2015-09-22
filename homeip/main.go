@@ -29,7 +29,7 @@ func main() {
 	// Frame up the server with our catch-all Handler
 	s := &http.Server{
 		Addr:           fmt.Sprintf("%s:%s", *ip, *port),
-		Handler:        http.HandlerFunc(Route_FigureItOut),
+		Handler:        DefaultRouter,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
