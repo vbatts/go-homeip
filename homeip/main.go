@@ -17,8 +17,9 @@ func main() {
 	app.Usage = "tokenized fetching for setting your homeip"
 	app.Commands = []cli.Command{
 		{
-			Name:  "daemon",
-			Usage: "serve the http daemon",
+			Name:    "daemon",
+			Aliases: []string{"d"},
+			Usage:   "serve the http daemon",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "ip",
