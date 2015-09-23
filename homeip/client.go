@@ -42,6 +42,8 @@ func clientCmd(c *cli.Context) {
 		fmt.Println(string(output))
 		os.Exit(0)
 	}
+
+	log.Fatal("this does nothing yet")
 }
 
 var clientFlags = []cli.Flag{
